@@ -1,0 +1,41 @@
+pipeline:
+  name: "whisper_pipeline"
+  cache_dir: "data/.cache"
+  cache_intermediate: true
+
+  stages:
+    - name: fetch
+      params:
+        cloud: local
+
+    - name: audio_extract
+      params:
+        sample_rate: 16000
+        channels: 1
+
+    - name: vad
+      params:
+        model: silero
+        threshold: 0.5
+
+    - name: quality_metrics
+      params:
+        metrics: [snr]
+
+    - name: transcription
+      params:
+        model: whisper-large-v3
+        language: ru
+        device: cuda         # Рекомендуется GPU для large
+
+    - name: diarization
+      params:
+        model: pyannote
+        num_speakers: null   # автоопределение
+
+    - name: postprocess
+      params:
+        remove_hallucinations: true
+        remove_repetitions: true
+        use_vad_verification: true
+        min_logprob: -1.0

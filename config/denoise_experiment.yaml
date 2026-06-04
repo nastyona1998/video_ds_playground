@@ -1,0 +1,39 @@
+pipeline:
+  name: "denoise_experiment"
+  cache_dir: "data/.cache"
+  cache_intermediate: false   # не кешируем — хотим точные замеры времени
+
+  stages:
+    - name: fetch
+      params:
+        cloud: local
+
+    - name: audio_extract
+      params:
+        sample_rate: 16000
+        channels: 1
+
+    # Сначала считаем метрики на грязном аудио
+    - name: quality_metrics
+      params:
+        metrics: [snr]
+
+    # Шумоподавление (попробуйте: noisereduce, speechbrain-sepformer, demucs)
+    - name: denoise
+      params:
+        model: noisereduce
+        snr_threshold: 20.0  # пропустить если SNR уже хороший
+        adaptive: true       # мягкое подавление при высоком SNR
+
+    # Транскрибируем "слабую" модель — она должна улучшиться
+    - name: transcription
+      params:
+        model: whisper-small
+        language: ru
+        use_denoised: true   # берём очищенное аудио
+        device: cpu
+
+    - name: postprocess
+      params:
+        remove_hallucinations: true
+        remove_repetitions: true

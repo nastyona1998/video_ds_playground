@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Виртуальные окружения
+.venv/
+venv/
+env/
+
+# Данные (не коммитить в репозиторий)
+data/raw_videos/
+data/audio/
+data/.cache/
+*.mp4
+*.mkv
+*.avi
+*.wav
+*.flac
+*.mp3
+
+# Отчёты (генерируются автоматически)
+data/reports/
+
+# Транскрипции (кроме эталонов)
+data/transcripts/*.txt
+!data/transcripts/README.md
+
+# Секреты
+.env
+*.key
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# macOS
+.DS_Store
+
+# Модели (тяжёлые файлы весов)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.ckpt
+!tests/fixtures/*.wav    # тестовые аудио можно коммитить

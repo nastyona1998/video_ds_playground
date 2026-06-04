@@ -1,0 +1,304 @@
+---
+title: Video DS Playground — Architecture
+---
+classDiagram
+    direction TB
+
+    %% ── CORE ──────────────────────────────────────────────────────────
+
+    class Stage {
+        <<abstract>>
+        +name: str
+        +run(data, context) dict
+        +get_config_schema() dict
+        +validate_inputs(data, required_keys)
+    }
+
+    class ModelWrapper {
+        <<abstract>>
+        +load(**kwargs)
+        +predict(audio_path, **params) Any
+        +is_loaded() bool
+    }
+
+    class Pipeline {
+        +config_path: str
+        +stages: list~Stage~
+        +context: dict
+        +run(video_path, skip_stages) dict
+        +add_stage(stage, position)
+        +skip_stage(stage_name)
+        +describe() str
+    }
+
+    class Registry {
+        +STAGE_REGISTRY: dict
+        +MODEL_REGISTRY: dict
+        +register_stage(name) decorator
+        +register_model(name) decorator
+        +get_stage(name) Type~Stage~
+        +get_model(name) Type~ModelWrapper~
+        +load_model(name, **kwargs) ModelWrapper
+    }
+
+    class CloudClient {
+        <<abstract>>
+        +download(remote_path, local_path) str
+        +list_files(remote_dir, extension) list
+        +upload(local_path, remote_path) bool
+        +download_if_needed(remote, local) str
+    }
+
+    %% ── CLOUD CLIENTS ────────────────────────────────────────────────
+
+    class NextcloudClient {
+        +host: str
+        +username: str
+        +password: str
+        +download()
+        +list_files()
+        +upload()
+    }
+
+    class S3Client {
+        +bucket: str
+        +endpoint_url: str
+        +download()
+        +list_files()
+        +upload()
+    }
+
+    class LocalClient {
+        +base_dir: str
+        +download()
+        +list_files()
+        +upload()
+    }
+
+    %% ── STAGES ───────────────────────────────────────────────────────
+
+    class FetchStage {
+        +cloud: str
+        +remote_path: str
+        +local_dir: str
+        +run() data~video_path, fetch_meta~
+    }
+
+    class AudioExtractStage {
+        +sample_rate: int
+        +channels: int
+        +audio_format: str
+        +run() data~audio_path, audio_meta~
+    }
+
+    class VADStage {
+        +model: str
+        +threshold: float
+        +run() data~speech_intervals, silence_intervals, speech_ratio~
+    }
+
+    class QualityMetricsStage {
+        +metrics: list
+        +run() data~metrics~
+    }
+
+    class DenoiseStage {
+        +model: str
+        +snr_threshold: float
+        +adaptive: bool
+        +run() data~denoised_audio_path~
+    }
+
+    class TranscriptionStage {
+        +model_name: str
+        +language: str
+        +use_denoised: bool
+        +run() data~transcription, word_timestamps~
+    }
+
+    class TranscriptionCompareStage {
+        +models: list~str~
+        +run() data~transcription_results~
+    }
+
+    class DiarizationStage {
+        +model: str
+        +num_speakers: int
+        +run() data~speaker_turns, speaker_transcription~
+        -_merge_with_transcription()
+    }
+
+    class PostprocessStage {
+        +remove_hallucinations: bool
+        +remove_repetitions: bool
+        +use_vad_verification: bool
+        +run() data~clean_transcription, removed_fragments~
+    }
+
+    %% ── MODELS ───────────────────────────────────────────────────────
+
+    class WhisperWrapper {
+        +load(model_size, device)
+        +predict() text, segments, language
+    }
+
+    class FasterWhisperWrapper {
+        +load(model_size, device, compute_type)
+        +predict() text, segments, language
+    }
+
+    class Wav2Vec2Wrapper {
+        +load(model_name, device)
+        +predict()~TODO~
+    }
+
+    class PyannoteWrapper {
+        +load(hf_token, device)
+        +predict()~TODO~
+    }
+
+    class SimpleDiarizerWrapper {
+        +load(embed_model)
+        +predict()
+    }
+
+    class SileroVADWrapper {
+        +load()
+        +predict()~TODO~
+    }
+
+    class WebRTCVADWrapper {
+        +vad: Vad
+        +load(aggressiveness)
+        +predict()
+    }
+
+    class NoiseReduceWrapper {
+        +load()
+        +predict()~TODO~
+    }
+
+    class SpeechBrainDenoiser {
+        +load(savedir)
+        +predict()
+    }
+
+    class DemucsWrapper {
+        +load(model_name)
+        +predict()
+    }
+
+    %% ── UTILS ────────────────────────────────────────────────────────
+
+    class ffmpeg_helper {
+        <<utility>>
+        +extract_audio()
+        +get_media_info()
+        +cut_audio()
+        +apply_vad_cut()
+    }
+
+    class metrics {
+        <<utility>>
+        +compute_wer()
+        +compute_cer()
+        +compute_pesq()~TODO~
+        +compute_stoi()~TODO~
+        +compute_snr()
+        +compare_wer_table()
+    }
+
+    class text_cleaner {
+        <<utility>>
+        +HALLUCINATION_PATTERNS
+        +detect_hallucinations()
+        +detect_repetitions()
+        +verify_with_vad()
+        +clean_text()
+    }
+
+    class report_generator {
+        <<utility>>
+        +generate_report(data, output_path) str
+    }
+
+    %% ── EXPERIMENTS ──────────────────────────────────────────────────
+
+    class compare_transcribers {
+        <<script>>
+        +run(models, video_path, reference)
+    }
+
+    class denoise_impact {
+        <<script>>
+        +run(denoisers, transcribers, video_path)
+    }
+
+    class run_ablation {
+        <<script>>
+        +ABLATION_CONFIGS: list
+        +run(video_path, reference, transcriber)
+    }
+
+    %% ── INHERITANCE ──────────────────────────────────────────────────
+
+    Stage <|-- FetchStage
+    Stage <|-- AudioExtractStage
+    Stage <|-- VADStage
+    Stage <|-- QualityMetricsStage
+    Stage <|-- DenoiseStage
+    Stage <|-- TranscriptionStage
+    Stage <|-- TranscriptionCompareStage
+    Stage <|-- DiarizationStage
+    Stage <|-- PostprocessStage
+
+    ModelWrapper <|-- WhisperWrapper
+    ModelWrapper <|-- FasterWhisperWrapper
+    ModelWrapper <|-- Wav2Vec2Wrapper
+    ModelWrapper <|-- PyannoteWrapper
+    ModelWrapper <|-- SimpleDiarizerWrapper
+    ModelWrapper <|-- SileroVADWrapper
+    ModelWrapper <|-- WebRTCVADWrapper
+    ModelWrapper <|-- NoiseReduceWrapper
+    ModelWrapper <|-- SpeechBrainDenoiser
+    ModelWrapper <|-- DemucsWrapper
+
+    CloudClient <|-- NextcloudClient
+    CloudClient <|-- S3Client
+    CloudClient <|-- LocalClient
+
+    %% ── RELATIONSHIPS ────────────────────────────────────────────────
+
+    Pipeline --> Registry : uses
+    Pipeline o-- Stage : contains ordered list
+
+    Registry --> Stage : instantiates
+    Registry --> ModelWrapper : instantiates
+
+    FetchStage --> CloudClient : uses
+    AudioExtractStage --> ffmpeg_helper : uses
+    VADStage --> SileroVADWrapper : loads via Registry
+    VADStage --> WebRTCVADWrapper : loads via Registry
+    DenoiseStage --> NoiseReduceWrapper : loads via Registry
+    DenoiseStage --> SpeechBrainDenoiser : loads via Registry
+    DenoiseStage --> DemucsWrapper : loads via Registry
+    TranscriptionStage --> WhisperWrapper : loads via Registry
+    TranscriptionStage --> FasterWhisperWrapper : loads via Registry
+    TranscriptionStage --> Wav2Vec2Wrapper : loads via Registry
+    TranscriptionCompareStage --> WhisperWrapper : loads via Registry
+    DiarizationStage --> PyannoteWrapper : loads via Registry
+    DiarizationStage --> SimpleDiarizerWrapper : loads via Registry
+    QualityMetricsStage --> metrics : uses
+    PostprocessStage --> text_cleaner : uses
+
+    compare_transcribers --> Pipeline : builds
+    compare_transcribers --> metrics : uses
+    compare_transcribers --> report_generator : uses
+    denoise_impact --> Registry : load_model
+    denoise_impact --> metrics : uses
+    denoise_impact --> report_generator : uses
+    run_ablation --> Pipeline : builds dynamically
+    run_ablation --> metrics : uses
+    run_ablation --> report_generator : uses
+
+    Pipeline --> report_generator : optional

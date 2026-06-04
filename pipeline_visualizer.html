@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video DS Playground — Pipeline Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Header with project info */
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 20px;
+            padding: 24px 32px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .header .project-path {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 12px;
+        }
+
+        /* Controls panel */
+        .controls {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 24px 32px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: none;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #334155;
+        }
+
+        select:hover {
+            border-color: #8b5cf6;
+        }
+
+        button {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border: none;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px #3b82f6;
+        }
+
+        .reset-btn {
+            background: #475569;
+        }
+
+        /* Pipeline stages */
+        .pipeline {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+            overflow-x: auto;
+        }
+
+        .stage-flow {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            min-width: min-content;
+        }
+
+        .stage-card {
+            flex: 1;
+            min-width: 240px;
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            border: 2px solid #334155;
+            position: relative;
+        }
+
+        .stage-card.pending {
+            opacity: 0.6;
+        }
+
+        .stage-card.running {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(59,130,246,0.3);
+            animation: pulse 1.5s infinite;
+        }
+
+        .stage-card.done {
+            border-color: #22c55e;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        .stage-card.skipped {
+            border-color: #ef4444;
+            opacity: 0.5;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .stage-name {
+            font-weight: 700;
+            font-size: 15px;
+            color: #f1f5f9;
+        }
+
+        .stage-file {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .stage-status {
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending .stage-status { background: #475569; color: #94a3b8; }
+        .status-running .stage-status { background: #3b82f6; color: white; }
+        .status-done .stage-status { background: #22c55e; color: white; }
+        .status-skipped .stage-status { background: #ef4444; color: white; }
+
+        .stage-metrics {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #334155;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            color: #f1f5f9;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .arrow {
+            font-size: 24px;
+            color: #475569;
+            align-self: center;
+        }
+
+        /* Data panel */
+        .data-panel {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 24px 32px;
+            border: 1px solid #334155;
+        }
+
+        .data-panel h3 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .data-item {
+            background: #0f172a;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-left: 3px solid #8b5cf6;
+        }
+
+        .data-key {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .data-value {
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            color: #e2e8f0;
+        }
+
+        /* Progress */
+        .progress-section {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 20px 32px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+
+        .progress-bar-container {
+            background: #0f172a;
+            border-radius: 999px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 999px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        @media (max-width: 1024px) {
+            .stage-flow {
+                flex-direction: column;
+            }
+            .arrow {
+                transform: rotate(90deg);
+                margin: 8px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Header with project structure -->
+    <div class="header">
+        <h1>🎬 video_ds_playground</h1>
+        <p style="color: #94a3b8; margin-top: 8px;">Audio/Video Processing Pipeline for ASR & Diarization Research</p>
+        <div class="project-path">
+            📁 video_ds_playground/ ├── config/ ├── src/ ├── notebooks/ └── tests/
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <label>⚙️ Конфигурация (config/*.yaml)</label>
+            <select id="configSelect">
+                <option value="default_pipeline">default_pipeline.yaml</option>
+                <option value="whisper_pipeline">whisper_pipeline.yaml</option>
+                <option value="denoise_experiment">denoise_experiment.yaml</option>
+                <option value="compare_whisper_vs_wav2vec2">compare_whisper_vs_wav2vec2.yaml</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>▶️ Управление пайплайном</label>
+            <button id="runBtn">🚀 Запустить pipeline.run()</button>
+        </div>
+        <div class="control-group">
+            <label>🔄 Сброс</label>
+            <button id="resetBtn" class="reset-btn">🗑️ Очистить состояние</button>
+        </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-stats">
+            <span id="completedStages">0</span>
+            <span>выполнено из</span>
+            <span id="totalStages">0</span>
+        </div>
+    </div>
+
+    <!-- Pipeline visualization -->
+    <div class="pipeline">
+        <div class="stage-flow" id="stageFlow"></div>
+    </div>
+
+    <!-- Live data panel -->
+    <div class="data-panel">
+        <h3>📊 Логи и метрики (из src/utils/metrics.py)</h3>
+        <div class="data-grid" id="liveData"></div>
+    </div>
+</div>
+
+<script>
+    // Точное соответствие структуре проекта
+    const PIPELINE_STAGES = [
+        { 
+            id: 'fetch', 
+            name: '📥 Cloud Fetch', 
+            module: 'src/stages/fetch.py',
+            src_file: 'src/core/cloud_client.py',
+            metrics: ['video_url', 'file_size_mb', 'download_time_sec']
+        },
+        { 
+            id: 'audio_extract', 
+            name: '🎵 Audio Extract', 
+            module: 'src/stages/audio_extractor.py',
+            src_file: 'src/utils/ffmpeg_helper.py',
+            metrics: ['audio_path', 'duration_sec', 'sample_rate']
+        },
+        { 
+            id: 'vad', 
+            name: '🎙️ VAD (Silero)', 
+            module: 'src/stages/vad.py',
+            src_file: 'src/models/silero_vad.py',
+            metrics: ['speech_ratio', 'speech_segments', 'vad_threshold']
+        },
+        { 
+            id: 'denoise', 
+            name: '🔊 Denoise', 
+            module: 'src/stages/denoise.py',
+            src_file: 'src/models/denoise_wrappers.py',
+            metrics: ['noise_reduction_db', 'snr_improvement', 'algorithm']
+        },
+        { 
+            id: 'transcription', 
+            name: '📝 Transcription (ASR)', 
+            module: 'src/stages/transcription.py',
+            src_file: 'src/models/wav2vec2_wrapper.py | src/models/whisper_wrapper.py',
+            metrics: ['model_type', 'transcription', 'inference_time_sec']
+        },
+        { 
+            id: 'speaker_diarization', 
+            name: '👥 Speaker Diarization', 
+            module: 'src/stages/speaker_diarization.py',
+            src_file: 'src/models/pyannote_wrapper.py',
+            metrics: ['num_speakers', 'diarization_error_rate', 'speaker_turns']
+        },
+        { 
+            id: 'quality_metrics', 
+            name: '📊 Quality Metrics', 
+            module: 'src/stages/quality_metrics.py',
+            src_file: 'src/utils/metrics.py',
+            metrics: ['wer', 'cer', 'rtf', 'mer']
+        },
+        { 
+            id: 'postprocess', 
+            name: '✨ Postprocess', 
+            module: 'src/stages/postprocess.py',
+            src_file: 'src/utils/text_cleaner.py',
+            metrics: ['text_length', 'punctuation_restored', 'capitalization']
+        }
+    ];
+
+    // Конфигурации, соответствующие YAML файлам
+    const CONFIGS = {
+        default_pipeline: {
+            name: 'default_pipeline.yaml',
+            description: 'Wav2Vec2 + PyAnnote базовый пайплайн',
+            stages: {
+                denoise: { enabled: false, skipped: true }
+            },
+            metrics: {
+                fetch: { video_url: 's3://video-ds/sample_lecture.mp4', file_size_mb: 124.5, download_time_sec: 8.3 },
+                audio_extract: { audio_path: 'data/audio/sample_lecture.wav', duration_sec: 187.4, sample_rate: 16000 },
+                vad: { speech_ratio: 0.72, speech_segments: 23, vad_threshold: 0.5 },
+                denoise: { noise_reduction_db: 0, snr_improvement: 0, algorithm: 'none' },
+                transcription: { model_type: 'wav2vec2-base-960h', transcription: 'привет это тестовое выступление для проверки системы распознавания речи', inference_time_sec: 12.4 },
+                speaker_diarization: { num_speakers: 2, diarization_error_rate: 0.18, speaker_turns: 14 },
+                quality_metrics: { wer: 0.24, cer: 0.19, rtf: 0.42, mer: 0.21 },
+                postprocess: { text_length: 342, punctuation_restored: true, capitalization: true }
+            }
+        },
+        whisper_pipeline: {
+            name: 'whisper_pipeline.yaml',
+            description: 'OpenAI Whisper + оптимизированный VAD',
+            stages: {
+                denoise: { enabled: false, skipped: true }
+            },
+            metrics: {
+                fetch: { video_url: 's3://video-ds/podcast_episode.mp4', file_size_mb: 89.2, download_time_sec: 5.7 },
+                audio_extract: { audio_path: 'data/audio/podcast.wav', duration_sec: 142.3, sample_rate: 16000 },
+                vad: { speech_ratio: 0.85, speech_segments: 31, vad_threshold: 0.45 },
+                denoise: { noise_reduction_db: 0, snr_improvement: 0, algorithm: 'none' },
+                transcription: { model_type: 'whisper-small', transcription: 'Hello, this is a podcast episode about data science and machine learning pipelines', inference_time_sec: 18.7 },
+                speaker_diarization: { num_speakers: 3, diarization_error_rate: 0.12, speaker_turns: 28 },
+                quality_metrics: { wer: 0.11, cer: 0.08, rtf: 0.65, mer: 0.09 },
+                postprocess: { text_length: 528, punctuation_restored: true, capitalization: true }
+            }
+        },
+        denoise_experiment: {
+            name: 'denoise_experiment.yaml',
+            description: 'RNNoise + Wav2Vec2 ablation study',
+            stages: {
+                denoise: { enabled: true, skipped: false }
+            },
+            metrics: {
+                fetch: { video_url: 's3://video-ds/noisy_interview.mp4', file_size_mb: 156.8, download_time_sec: 11.2 },
+                audio_extract: { audio_path: 'data/audio/noisy_interview.wav', duration_sec: 234.6, sample_rate: 16000 },
+                vad: { speech_ratio: 0.68, speech_segments: 26, vad_threshold: 0.55 },
+                denoise: { noise_reduction_db: 14.2, snr_improvement: 9.8, algorithm: 'RNNoise' },
+                transcription: { model_type: 'wav2vec2 + RNNoise', transcription: 'после применения шумоподавления качество распознавания значительно улучшилось', inference_time_sec: 15.3 },
+                speaker_diarization: { num_speakers: 2, diarization_error_rate: 0.21, speaker_turns: 18 },
+                quality_metrics: { wer: 0.17, cer: 0.13, rtf: 0.58, mer: 0.15 },
+                postprocess: { text_length: 416, punctuation_restored: true, capitalization: true }
+            }
+        },
+        compare_whisper_vs_wav2vec2: {
+            name: 'compare_whisper_vs_wav2vec2.yaml',
+            description: 'Сравнение ASR моделей + ансамблирование',
+            stages: {
+                denoise: { enabled: false, skipped: true }
+            },
+            metrics: {
+                fetch: { video_url: 's3://video-ds/multi_speaker_panel.mp4', file_size_mb: 342.1, download_time_sec: 24.8 },
+                audio_extract: { audio_path: 'data/audio/panel_discussion.wav', duration_sec: 891.2, sample_rate: 16000 },
+                vad: { speech_ratio: 0.79, speech_segments: 87, vad_threshold: 0.48 },
+                denoise: { noise_reduction_db: 0, snr_improvement: 0, algorithm: 'none' },
+                transcription: { model_type: 'ensemble (whisper + wav2vec2)', transcription: 'объединение двух моделей позволяет достичь наилучшего качества распознавания в сложных акустических условиях', inference_time_sec: 32.1 },
+                speaker_diarization: { num_speakers: 4, diarization_error_rate: 0.09, speaker_turns: 56 },
+                quality_metrics: { wer: 0.08, cer: 0.06, rtf: 0.95, mer: 0.07 },
+                postprocess: { text_length: 1248, punctuation_restored: true, capitalization: true }
+            }
+        }
+    };
+
+    let currentConfig = 'default_pipeline';
+    let pipelineStatus = {};
+    let animationRunning = false;
+
+    function initStatus() {
+        const config = CONFIGS[currentConfig];
+        PIPELINE_STAGES.forEach(stage => {
+            let skipFlag = false;
+            if (config.stages && config.stages[stage.id]) {
+                skipFlag = config.stages[stage.id].skipped === true;
+            }
+            pipelineStatus[stage.id] = {
+                status: 'pending',
+                skipped: skipFlag
+            };
+        });
+        updateUI();
+    }
+
+    function updateUI() {
+        renderStages();
+        updateProgress();
+        updateLiveData();
+    }
+
+    function renderStages() {
+        const container = document.getElementById('stageFlow');
+        const config = CONFIGS[currentConfig];
+        
+        const stagesHtml = [];
+        PIPELINE_STAGES.forEach((stage, idx) => {
+            const statusObj = pipelineStatus[stage.id];
+            const status = statusObj.status;
+            const isSkipped = statusObj.skipped && status !== 'running';
+            const displayStatus = isSkipped ? 'skipped' : status;
+            
+            let statusText = '';
+            if (displayStatus === 'pending') statusText = '⏳ PENDING';
+            else if (displayStatus === 'running') statusText = '⚡ RUNNING';
+            else if (displayStatus === 'done') statusText = '✅ DONE';
+            else if (displayStatus === 'skipped') statusText = '⏭️ SKIPPED';
+            
+            const stageClass = `stage-card ${displayStatus}`;
+            const stageMetrics = config.metrics[stage.id] || {};
+            
+            let metricsHtml = '';
+            if (displayStatus === 'done' || displayStatus === 'skipped') {
+                metricsHtml = '<div class="stage-metrics">';
+                stage.metrics.forEach(metric => {
+                    if (stageMetrics[metric] !== undefined) {
+                        let value = stageMetrics[metric];
+                        if (typeof value === 'number') value = value.toFixed(3);
+                        metricsHtml += `
+                            <div class="metric">
+                                <span class="metric-label">${metric}:</span>
+                                <span class="metric-value">${value}</span>
+                            </div>
+                        `;
+                    }
+                });
+                metricsHtml += '</div>';
+            } else if (displayStatus === 'running') {
+                metricsHtml = '<div class="stage-metrics"><div class="metric"><span class="metric-label">⏳ Обработка...</span></div></div>';
+            }
+            
+            stagesHtml.push(`
+                <div class="${stageClass}" data-stage="${stage.id}">
+                    <div class="stage-header">
+                        <span class="stage-name">${stage.name}</span>
+                        <span class="stage-status">${statusText}</span>
+                    </div>
+                    <div class="stage-file">📄 ${stage.module}</div>
+                    ${metricsHtml}
+                </div>
+            `);
+            
+            if (idx < PIPELINE_STAGES.length - 1) {
+                stagesHtml.push('<div class="arrow">→</div>');
+            }
+        });
+        
+        container.innerHTML = stagesHtml.join('');
+        document.getElementById('totalStages').innerText = PIPELINE_STAGES.length;
+    }
+
+    function updateProgress() {
+        let completed = 0;
+        PIPELINE_STAGES.forEach(stage => {
+            const s = pipelineStatus[stage.id];
+            if (s.status === 'done' || (s.skipped && s.status !== 'running')) {
+                completed++;
+            }
+        });
+        const percent = (completed / PIPELINE_STAGES.length) * 100;
+        document.getElementById('progressBar').style.width = `${percent}%`;
+        document.getElementById('completedStages').innerText = completed;
+    }
+
+    function updateLiveData() {
+        const config = CONFIGS[currentConfig];
+        const allMetrics = {};
+        Object.keys(config.metrics).forEach(stageId => {
+            Object.assign(allMetrics, config.metrics[stageId]);
+        });
+        allMetrics.config = config.name;
+        allMetrics.pipeline_status = `${Object.values(pipelineStatus).filter(s => s.status === 'done').length}/${PIPELINE_STAGES.length}`;
+        
+        const grid = document.getElementById('liveData');
+        const importantKeys = ['video_url', 'audio_path', 'duration_sec', 'speech_ratio', 'model_type', 'transcription', 'wer', 'cer', 'num_speakers', 'diarization_error_rate', 'noise_reduction_db', 'rtf', 'config'];
+        
+        let html = '';
+        importantKeys.forEach(key => {
+            if (allMetrics[key] !== undefined) {
+                let value = allMetrics[key];
+                if (typeof value === 'number') value = value.toFixed(3);
+                if (key === 'transcription' && value.length > 60) value = value.substring(0, 60) + '...';
+                html += `
+                    <div class="data-item">
+                        <div class="data-key">${key}</div>
+                        <div class="data-value">${value}</div>
+                    </div>
+                `;
+            }
+        });
+        
+        grid.innerHTML = html || '<div class="data-item">📭 Нет данных</div>';
+    }
+
+    async function runPipeline() {
+        if (animationRunning) return;
+        animationRunning = true;
+        
+        resetPipeline();
+        
+        const config = CONFIGS[currentConfig];
+        const stagesToRun = PIPELINE_STAGES.filter(stage => {
+            const shouldSkip = config.stages?.[stage.id]?.skipped === true;
+            return !shouldSkip;
+        });
+        
+        for (const stage of stagesToRun) {
+            pipelineStatus[stage.id].status = 'running';
+            updateUI();
+            
+            // Имитация реальной обработки (от 300 до 800 мс)
+            const processingTime = Math.random() * 500 + 400;
+            await new Promise(resolve => setTimeout(resolve, processingTime));
+            
+            pipelineStatus[stage.id].status = 'done';
+            updateUI();
+        }
+        
+        animationRunning = false;
+        updateUI();
+    }
+
+    function resetPipeline() {
+        if (animationRunning) return;
+        initStatus();
+        updateUI();
+    }
+
+    function changeConfig() {
+        if (animationRunning) return;
+        currentConfig = document.getElementById('configSelect').value;
+        initStatus();
+    }
+
+    document.getElementById('runBtn').addEventListener('click', () => runPipeline());
+    document.getElementById('resetBtn').addEventListener('click', () => resetPipeline());
+    document.getElementById('configSelect').addEventListener('change', () => changeConfig());
+    
+    initStatus();
+</script>
+</body>
+</html>

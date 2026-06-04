@@ -1,0 +1,35 @@
+pipeline:
+  name: "compare_whisper_vs_wav2vec2"
+  cache_dir: "data/.cache"
+  cache_intermediate: true
+
+  stages:
+    - name: fetch
+      params:
+        cloud: local
+
+    - name: audio_extract
+      params:
+        sample_rate: 16000
+        channels: 1
+
+    - name: vad
+      params:
+        model: silero
+
+    # Сравниваем несколько моделей одновременно
+    - name: transcription_compare
+      params:
+        models:
+          - whisper-tiny
+          - whisper-small
+          - whisper-large-v3
+          - wav2vec2-xlsr-ru
+        language: ru
+        device: cpu
+        reference_key: ground_truth   # ключ с эталоном в data{}
+
+    - name: postprocess
+      params:
+        remove_hallucinations: true
+        remove_repetitions: true
