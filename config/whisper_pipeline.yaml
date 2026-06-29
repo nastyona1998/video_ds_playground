@@ -26,7 +26,7 @@ pipeline:
       params:
         model: whisper-large-v3
         language: ru
-        device: cuda         # Рекомендуется GPU для large
+        device: cpu         # Рекомендуется GPU для large
 
     - name: diarization
       params:

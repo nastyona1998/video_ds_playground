@@ -58,25 +58,25 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
 {% if metrics %}
 <h2>Метрики качества аудио</h2>
 <div class="metric-grid">
-  {% if metrics.snr_db is not none %}
+  {% if metrics.snr_db is defined and metrics.snr_db is not none %}
   <div class="metric-card">
     <div class="metric-val">{{ "%.1f"|format(metrics.snr_db) }} дБ</div>
     <div class="metric-name">SNR</div>
   </div>
   {% endif %}
-  {% if metrics.pesq is not none %}
+  {% if metrics.pesq is defined and metrics.pesq is not none %}
   <div class="metric-card">
     <div class="metric-val">{{ "%.2f"|format(metrics.pesq) }}</div>
     <div class="metric-name">PESQ (MOS-LQO)</div>
   </div>
   {% endif %}
-  {% if metrics.stoi is not none %}
+  {% if metrics.stoi is defined and metrics.stoi is not none %}
   <div class="metric-card">
     <div class="metric-val">{{ "%.3f"|format(metrics.stoi) }}</div>
     <div class="metric-name">STOI</div>
   </div>
   {% endif %}
-  {% if metrics.speech_ratio is not none %}
+  {% if metrics.speech_ratio is defined and metrics.speech_ratio is not none %}
   <div class="metric-card">
     <div class="metric-val">{{ "%.0f"|format(metrics.speech_ratio * 100) }}%</div>
     <div class="metric-name">Доля речи</div>
@@ -149,7 +149,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
 <table>
   <tr><th>Метод шумоподавления</th><th>Транскрибатор</th><th>WER</th><th>ΔWER</th></tr>
   {% for row in denoise_comparison %}
-  <tr class="{{ 'best' if row.delta < 0 else ('worse' if row.delta > 0.02 else '') }}">
+  <tr class="{{ 'best' if row.delta is not none and row.delta < 0 else ('worse' if row.delta is not none and row.delta > 0.02 else '') }}">
     <td>{{ row.denoiser }}</td>
     <td>{{ row.transcriber }}</td>
     <td>{{ "%.4f"|format(row.wer) }}</td>

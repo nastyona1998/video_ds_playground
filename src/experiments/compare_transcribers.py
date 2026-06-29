@@ -94,6 +94,7 @@ def run(
         "audio_meta": audio_meta,
         "transcription_results": results,
         "ground_truth": reference,
+        "clean_transcription": "\n\n".join("=== " + m + " ===\n" + r.get("text", "") for m, r in results.items() if r.get("text")),
     }
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     report_path = generate_report(report_data)

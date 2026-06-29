@@ -60,10 +60,20 @@ class NoiseReduceWrapper(ModelWrapper):
             sf.write(out, reduced, sr)
             return {"output_path": out}
         """
-        raise NotImplementedError(
-            "Реализуйте predict() для NoiseReduceWrapper.\n"
-            "Смотрите задание: docs/tasks/07_denoising.md"
+        import noisereduce as nr
+        import soundfile as sf
+
+        data, sr = sf.read(audio_path)
+        reduced = nr.reduce_noise(
+            y=data,
+            sr=sr,
+            prop_decrease=prop_decrease,
+            stationary=stationary,
+            n_std_thresh_stationary=n_std_thresh_stationary,
         )
+        out = output_path or audio_path.replace(".wav", "_nr.wav")
+        sf.write(out, reduced, sr)
+        return {"output_path": out}
 
 
 @register_model("speechbrain-sepformer")

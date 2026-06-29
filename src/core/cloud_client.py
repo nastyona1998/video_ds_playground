@@ -112,25 +112,25 @@ class NextcloudClient(CloudClient):
         """
         client = self._get_client()
         Path(local_path).parent.mkdir(parents=True, exist_ok=True)
-        # --- Ваш код здесь ---
-        # client.download_sync(remote_path=remote_path, local_path=local_path)
+        client.download_sync(remote_path=remote_path, local_path=local_path)
+        return str(local_path)
         raise NotImplementedError(
             "Реализуйте метод download() в NextcloudClient. "
             "См. задание docs/tasks/01_cloud_fetch.md"
         )
 
     def list_files(self, remote_dir: str, extension: str | None = None) -> list[str]:
-        """
-        TODO: Реализуйте метод.
-        Подсказка: self._get_client().list(remote_dir)
-        """
+        client = self._get_client()
+        files = client.list(remote_dir)
+        if extension:
+            files = [f for f in files if f.endswith(extension)]
+        return files
         raise NotImplementedError("Реализуйте list_files()")
 
     def upload(self, local_path: str, remote_path: str) -> bool:
-        """
-        TODO: Реализуйте метод.
-        Подсказка: self._get_client().upload_sync(remote_path, local_path)
-        """
+        client = self._get_client()
+        client.upload_sync(remote_path=remote_path, local_path=local_path)
+        return True
         raise NotImplementedError("Реализуйте upload()")
 
 

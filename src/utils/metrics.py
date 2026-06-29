@@ -73,10 +73,19 @@ def compute_pesq(
         pesq_score = F.pesq(sample_rate, ref, deg, mode)
         return float(pesq_score.mean())
     """
-    raise NotImplementedError(
-        "Реализуйте compute_pesq().\n"
-        "Смотрите задание: docs/tasks/06_quality_metrics.md"
-    )
+    import torchaudio
+    import torchaudio.functional as F
+
+    ref, sr_ref = torchaudio.load(reference_path)
+    deg, sr_deg = torchaudio.load(degraded_path)
+    if sr_ref != sample_rate:
+        ref = torchaudio.transforms.Resample(sr_ref, sample_rate)(ref)
+    if sr_deg != sample_rate:
+        deg = torchaudio.transforms.Resample(sr_deg, sample_rate)(deg)
+    min_len = min(ref.shape[-1], deg.shape[-1])
+    ref, deg = ref[..., :min_len], deg[..., :min_len]
+    pesq_score = F.pesq(sample_rate, ref, deg, mode)
+    return float(pesq_score.mean())
 
 
 def compute_stoi(
@@ -104,10 +113,15 @@ def compute_stoi(
         stoi_score = F.stoi(ref, deg, sample_rate, extended=extended)
         return float(stoi_score.mean())
     """
-    raise NotImplementedError(
-        "Реализуйте compute_stoi().\n"
-        "Смотрите задание: docs/tasks/06_quality_metrics.md"
-    )
+    import torchaudio
+    import torchaudio.functional as F
+
+    ref, _ = torchaudio.load(reference_path)
+    deg, _ = torchaudio.load(degraded_path)
+    min_len = min(ref.shape[-1], deg.shape[-1])
+    ref, deg = ref[..., :min_len], deg[..., :min_len]
+    stoi_score = F.stoi(ref, deg, sample_rate, extended=extended)
+    return float(stoi_score.mean())
 
 
 def compute_snr(audio_path: str, use_vad: bool = True) -> float:
@@ -197,8 +211,9 @@ def compare_wer_table(results: dict[str, dict]) -> str:
         f"{'Модель':<30} {'WER':>8} {'Время (с)':>12}",
         "-" * 54,
     ]
-    for model, data in sorted(results.items(), key=lambda x: x[1].get("wer", 999)):
+    for model, data in sorted(results.items(), key=lambda x: (x[1].get("wer") is None, x[1].get("wer") or 999)):
         wer_val = data.get("wer", float("nan"))
         time_val = data.get("inference_time_sec", float("nan"))
-        lines.append(f"{model:<30} {wer_val:>8.4f} {time_val:>12.1f}")
+        wer_str = f"{wer_val:.4f}" if wer_val is not None else "    N/A"
+        lines.append(f"{model:<30} {wer_str:>8} {time_val:>12.1f}")
     return "\n".join(lines)

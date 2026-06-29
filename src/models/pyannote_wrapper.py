@@ -28,24 +28,15 @@ class PyannoteWrapper(ModelWrapper):
         device: str = "cpu",
         **kwargs,
     ) -> None:
-        """
-        TODO: Реализуйте загрузку пайплайна pyannote.
-
-        Подсказка:
-            from pyannote.audio import Pipeline
-            token = hf_token or os.environ.get("HF_TOKEN")
-            self.pipeline = Pipeline.from_pretrained(
-                "pyannote/speaker-diarization-3.1",
-                use_auth_token=token
-            )
-            import torch
-            self.pipeline.to(torch.device(device))
-        """
-        raise NotImplementedError(
-            "Реализуйте load() для PyannoteWrapper.\n"
-            "Нужен HF_TOKEN: получите токен на https://huggingface.co/settings/tokens\n"
-            "Примите условия использования: https://huggingface.co/pyannote/speaker-diarization-3.1"
+        from pyannote.audio import Pipeline
+        import torch
+        token = hf_token or os.environ.get("HF_TOKEN")
+        self.pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            token=token
         )
+        self.pipeline.to(torch.device(device))
+
 
     def predict(
         self,
@@ -55,28 +46,19 @@ class PyannoteWrapper(ModelWrapper):
         max_speakers: int | None = None,
         **kwargs,
     ) -> dict:
-        """
-        TODO: Реализуйте инференс.
+        params = {}
+        if num_speakers:
+            params["num_speakers"] = num_speakers
+        elif min_speakers or max_speakers:
+            params["min_speakers"] = min_speakers
+            params["max_speakers"] = max_speakers
 
-        Подсказка:
-            params = {}
-            if num_speakers:
-                params["num_speakers"] = num_speakers
-            elif min_speakers or max_speakers:
-                params["min_speakers"] = min_speakers
-                params["max_speakers"] = max_speakers
-
-            diarization = self.pipeline(audio_path, **params)
-            segments = []
-            for turn, _, speaker in diarization.itertracks(yield_label=True):
-                segments.append({
-                    "start": turn.start,
-                    "end": turn.end,
-                    "speaker": speaker
-                })
-            return {"segments": segments}
-        """
-        raise NotImplementedError("Реализуйте predict() для PyannoteWrapper.")
+        diarization = self.pipeline(audio_path, **params)
+        segments = []
+        annotation = diarization.speaker_diarization if hasattr(diarization, 'speaker_diarization') else diarization
+        for turn, _, speaker in annotation.itertracks(yield_label=True):
+            segments.append({"start": turn.start, "end": turn.end, "speaker": speaker})
+        return {"segments": segments}
 
 
 @register_model("simple_diarizer")

@@ -33,6 +33,11 @@ pipeline:
         language: null      # null = автоопределение
         device: cpu
 
+    - name: diarization
+      params:
+        model: pyannote
+        device: cpu
+
     - name: postprocess
       params:
         remove_hallucinations: true
