@@ -17,6 +17,8 @@
     python run.py --config config/default_pipeline.yaml --video ... \\
         --only audio_extract,vad,transcription
 """
+from dotenv import load_dotenv
+load_dotenv()
 import argparse
 import json
 import logging
