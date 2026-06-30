@@ -98,7 +98,7 @@ class NextcloudClient(CloudClient):
                 "webdav_hostname": self.host,
                 "webdav_login": self.username,
                 "webdav_password": self.password,
-                "webdav_root": self.root_path + self.username + "/",
+                "webdav_root": self.root_path,
             }
             self._client = wc.Client(options)
         return self._client
